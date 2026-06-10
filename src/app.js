@@ -3,6 +3,8 @@ import { extractSheetRecords, getSheetNames, guessBaseSheet } from './excel.js';
 import { ORS_API_KEY } from './config.js';
 import { fetchOrsDistanceKm, loadIbgeCoordsMap, normalizeIbgeCode } from './distance.js';
 import { formatMoney, formatPercent, parseNumber } from './utils.js';
+import { normalizeText } from './utils.js';
+
 const state = {
   workbook: null,
   sheetName: '',
@@ -53,7 +55,7 @@ function renderSummary(rows) {
 
 function renderTable(rows) {
   if (!rows.length) {
-    els.tbody.innerHTML = '<tr><td colspan="8" class="muted">Envie um arquivo para começar.</td></tr>';
+    els.tbody.innerHTML = '<tr><td colspan="9" class="muted">Envie um arquivo para começar.</td></tr>';
     return;
   }
 
@@ -64,6 +66,7 @@ function renderTable(rows) {
       <td>${row.rowNumber}</td>
       <td><span class="pill ${pillClass}">${row.classification}</span></td>
       <td>${formatMoney(row.anttValue)}</td>
+      <td>${formatMoney(row.pisCofins)}</td>
       <td>${formatMoney(row.companyValue)}</td>
       <td>${formatMoney(row.diff)}</td>
       <td>${formatPercent(row.diffPct)}</td>
@@ -73,7 +76,7 @@ function renderTable(rows) {
   }).join('');
 
   if (rows.length > 200) {
-    els.tbody.insertAdjacentHTML('beforeend', '<tr><td colspan="8" class="muted">Mostrando apenas 200 linhas. O Excel exportado contém tudo.</td></tr>');
+    els.tbody.insertAdjacentHTML('beforeend', '<tr><td colspan="9" class="muted">Mostrando apenas 200 linhas. O Excel exportado contém tudo.</td></tr>');
   }
 }
 
@@ -120,7 +123,7 @@ async function buildDistanceLookup(records) {
 
   const map = new Map();
   let failures = 0;
-  const CONCURRENCY = 5; // máximo de requisições simultâneas
+  const CONCURRENCY = 5;
 
   for (let i = 0; i < pairs.length; i += CONCURRENCY) {
     const batch = pairs.slice(i, i + CONCURRENCY);
@@ -137,6 +140,17 @@ async function buildDistanceLookup(records) {
   }
 
   return { map, failures, total: pairs.length };
+}
+
+function mapVehicleToAxis(text) {
+  const v = normalizeText(text);
+  if (v.includes('VUC')) return 2;
+  if (v.includes('TOCO')) return 3;
+  if (v.includes('TRUCK')) return 4;
+  if (v.includes('CARRETA') && v.includes('SIMPLES')) return 5;
+  if (v.includes('CARRETA')) return 6;
+  if (v.includes('BITREM') || v.includes('BI-TREM')) return 9;
+  return null;
 }
 
 async function handleFile(file) {
@@ -177,17 +191,16 @@ async function handleFile(file) {
   for (let index = 0; index < baseRecords.length; index += 1) {
     const row = baseRecords[index];
     const rowNumber = index + 2;
-    const productText = String(row['TIPO CARGA'] ?? row['TIPO CARGA'] ?? '');    
+    const productText = String(row['TIPO CARGA'] ?? '');
     const vehicleText = String(row['EIXO'] ?? row.VEÍCULO ?? '');
     const loadType = inferLoadType(productText);
-    const axis = inferAxis(vehicleText);
+    const axis = inferAxis(vehicleText) ?? mapVehicleToAxis(vehicleText);
     const dangerousLoad = inferDangerousLoad(productText, vehicleText);
     const onlyTractionVehicle = onlyTractionMode === 'auto' ? inferOnlyTraction(vehicleText, String(row.TRANSP ?? '')) : onlyTractionMode === 'true';
     const originCode = getIbgeCodeFromRow(row, ['IBGE CID ORG', 'IBGE CID ORIG', 'IBGE ORIG']);
     const destCode = getIbgeCodeFromRow(row, ['IBGE CID DEST', 'IBGE CID DESTINO', 'IBGE DEST']);
     const pairKey = originCode && destCode ? `${originCode}|${destCode}` : '';
     const distance = (pairKey ? distanceLookup.map.get(pairKey) ?? null : null) ?? parseNumber(row['KM']);
-    console.log('KM da planilha:', row['KM'], '→ parseNumber:', parseNumber(row['KM']));
     const company = deriveCompanyValue(row, '');
     let anttValue = null;
 
@@ -203,12 +216,15 @@ async function handleFile(file) {
       }, officialTables);
     }
 
+    const pisCofins = anttValue != null ? anttValue / 0.9075 : null;
     const result = classifyDifference(company.value, anttValue, belowThreshold, aboveThreshold);
+
     rows.push({
       rowNumber,
       companyValue: company.value,
       companySource: company.source,
       anttValue,
+      pisCofins,
       diff: result.diff,
       diffPct: result.diffPct,
       classification: result.classification,
@@ -243,6 +259,7 @@ async function exportWorkbook() {
     return {
       ...row,
       'ANTT CALCULADO': processed?.anttValue ?? '',
+      'PIS/COFINS': processed?.pisCofins ?? '',
       'VALOR EMPRESA': processed?.companyValue ?? '',
       'FONTE EMPRESA': processed?.companySource ?? '',
       'DIFERENÇA R$': processed?.diff ?? '',
