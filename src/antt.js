@@ -176,6 +176,10 @@ export function inferDangerousLoad(...texts) {
   return texts.some(text => normalizeText(text).includes('PERIGOS'));
 }
 
+export function inferEmptyReturn(retornoVazioText) {
+  return normalizeText(retornoVazioText).includes('RETORNO VAZIO');
+}
+
 export function deriveCompanyValue(row, selectedHeader) {
   const sources = [
     selectedHeader,

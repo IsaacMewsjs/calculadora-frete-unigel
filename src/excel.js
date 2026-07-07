@@ -18,6 +18,7 @@ const KNOWN_HEADERS = [
   'CID ORIG',
   'CID DEST',
   'ROTA',
+  'RETONO VAZIO'
 ];
 
 export function getSheetNames(workbook) {

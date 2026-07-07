@@ -1,4 +1,4 @@
-import { calculateAnttFromOfficialTables, classifyDifference, deriveCompanyValue, inferAxis, inferDangerousLoad, inferLoadType, inferOnlyTraction, loadOfficialAnttTables, selectTableKey } from './antt.js';
+import { calculateAnttFromOfficialTables, classifyDifference, deriveCompanyValue, inferAxis, inferDangerousLoad, inferEmptyReturn, inferLoadType, inferOnlyTraction, loadOfficialAnttTables, selectTableKey } from './antt.js';
 import { extractSheetRecords, getSheetNames, guessBaseSheet } from './excel.js';
 import { ORS_API_KEY } from './config.js';
 import { fetchOrsDistanceKm, loadIbgeCoordsMap, normalizeIbgeCode } from './distance.js';
@@ -203,7 +203,7 @@ async function handleFile(file) {
     const dangerousLoad = inferDangerousLoad(productText, vehicleText);
     const vehicleNorm = normalizeText(vehicleText);
     const isTractionOnly = vehicleNorm.includes('TOCO') || vehicleNorm.includes('TRUCK') || vehicleNorm.includes('VUC');
-    const emptyReturn = isCtnr(vehicleText);
+    const emptyReturn = inferEmptyReturn(row['RETORNO VAZIO']);
     const onlyTractionVehicle = isTractionOnly || (onlyTractionMode === 'auto'
       ? inferOnlyTraction(vehicleText, String(row.TRANSP ?? ''))
       : onlyTractionMode === 'true');
