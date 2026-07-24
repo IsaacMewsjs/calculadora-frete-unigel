@@ -1,6 +1,6 @@
 import { normalizeText, parseNumber } from './utils.js';
 
-export const ANTT_URL = 'https://anttlegis.antt.gov.br/action/ActionDatalegis.php?acao=abrirTextoAto&link=S&tipo=POR&numeroAto=00000004&seqAto=000&valorAno=2026&orgao=SUROC/ANTT/MT&cod_modulo=161&cod_menu=7804';
+export const ANTT_URL = 'https://anttlegis.antt.gov.br/action/ActionDatalegis.php?acao=abrirTextoAto&tipo=RES&numeroAto=00006084&seqAto=000&valorAno=2026&orgao=DG/ANTT/MT&cod_modulo=623&cod_menu=9230';
 const AXIS_ORDER = [2, 3, 4, 5, 6, 7, 9];
 
 const anttCache = { tables: null, promise: null };
